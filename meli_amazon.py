@@ -103,7 +103,6 @@ if archivo_ml and archivo_amazon:
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
                     descripcion_ml = str(modelo_base[c_desc]).strip() if c_desc and pd.notna(modelo_base[c_desc]) else ''
                     
-                    # Ajuste 1: SKU Padre toma el Family ID asegurando que no tenga ".0"
                     sku_padre = str(family_id).strip()
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
@@ -151,19 +150,17 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Material', material_ext)
                     assign(parent, 'Número de Artículos', '1')
                     assign(parent, 'Numero de pieza', modelo_diseno)
-                    assign(parent, 'Modelos de teléfono móvil compatibles', modelo_diseno)
-                    assign(parent, 'Dispositivos Compatibles', modelo_diseno)
+                    # CORRECCIÓN 4: Eliminada la asignación de modelos compatibles para el Padre
                     assign(parent, 'Conteo de unidades', '1.0')
                     assign(parent, 'Tipo de conteo de unidades', 'unidad')
                     assign(parent, 'Saltar oferta', 'No')
                     assign(parent, 'Estado del producto', 'Nuevo')
                     assign(parent, 'Moneda del precio de venta recomendado', 'MXN')
-                    assign(parent, 'Cumplimiento de código de canal (MX)', 'Gestionado por el vendedor')
+                    # CORRECCIÓN 2: Texto exacto
+                    assign(parent, 'Cumplimiento de código de canal (MX)', 'Gestionado por el vendedor (predeterminado)')
                     assign(parent, 'Plantilla de envío (MX)', 'Plantilla de Amazon')
                     assign(parent, 'Garantía de Producto', 'Garantia de 30 dias ')
                     assign(parent, 'País de origen', 'China')
-                    
-                    # Ajuste 4: Baterías SOLO en el padre
                     assign_any(parent, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], 'No')
                     
                     amazon_data.append(parent)
@@ -171,7 +168,6 @@ if archivo_ml and archivo_amazon:
                     for _, row in group.iterrows():
                         child = parent.copy()
                         
-                        # Limpiamos todo rastro de "baterías" para los hijos
                         assign_any(child, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], '')
                         
                         sku_hijo_raw = str(row[c_sku]).strip() if c_sku and pd.notna(row[c_sku]) else ''
@@ -181,6 +177,10 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nivel de relación', 'Niños')
                         assign(child, 'SKU principal', sku_padre)
                         
+                        # CORRECCIÓN 4: Se mantiene exclusivamente para los Hijos
+                        assign(child, 'Modelos de teléfono móvil compatibles', modelo_diseno)
+                        assign(child, 'Dispositivos Compatibles', modelo_diseno)
+                        
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
                         assign(child, 'Color', color_val)
                         
@@ -188,23 +188,28 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
                         assign(child, 'Su precio MXN (Vender en Amazon, MX)', precio_val)
                         
-                        # Ajuste 2: Cantidad e Inventario SOLO para los hijos, jalando del Stock
                         stock_val = row[c_stock] if c_stock and pd.notna(row[c_stock]) else ''
                         assign(child, 'Cantidad (MX)', stock_val)
                         assign(child, 'Inventario siempre disponible (MX)', 'Deshabilitado')
                         
-                        # Ajuste 3: Medidas SOLO para los hijos, con los nuevos datos de paquete
                         assign(child, 'Valor decimal del grosor del artículo', '1.0')
                         assign(child, 'Valor descriptivo del grosor del artículo', '1')
                         assign(child, 'Unidad del grosor del artículo', 'Centímetros')
                         
-                        assign_any(child, ['Longitud del artículo', 'Longitud del artículo.1', 'item_package_dimensions_length'], '18.0')
-                        assign_any(child, ['longitud del artículo', 'item_package_dimensions_length_unit'], 'Centímetros')
-                        assign_any(child, ['ancho del articulo'], '12.0')
-                        assign_any(child, ['Unidad de ancho de artículo'], 'Centímetros')
-                        assign_any(child, ['Altura del artículo'], '1.0')
-                        assign_any(child, ['Unidad de altura del artículo'], 'Centímetros')
+                        # CORRECCIÓN 3: Solución al choque de nombres exactos para las medidas del artículo
+                        len_cols = [c for c in template_cols if clean_str(c) == 'longitud del articulo']
+                        if len(len_cols) >= 1: child[len_cols[0]] = '18.0'
+                        if len(len_cols) >= 2: child[len_cols[1]] = 'Centímetros'
                         
+                        width_cols = [c for c in template_cols if clean_str(c) == 'ancho del articulo']
+                        if len(width_cols) >= 1: child[width_cols[0]] = '12.0'
+                        if len(width_cols) >= 2: child[width_cols[1]] = 'Centímetros'
+                        
+                        height_cols = [c for c in template_cols if clean_str(c) == 'altura del articulo']
+                        if len(height_cols) >= 1: child[height_cols[0]] = '1.0'
+                        if len(height_cols) >= 2: child[height_cols[1]] = 'Centímetros'
+                        
+                        # Medidas de paquete
                         assign_any(child, ['Longitud Paquete'], '19.0')
                         assign_any(child, ['Unidad de longitud del paquete'], 'Centímetros')
                         assign_any(child, ['Ancho Paquete'], '15.0')
@@ -240,7 +245,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Archivo generado con éxito! El Equipo de Trabajo ya lo puede subir directo.")
+                st.success("¡Archivo generado con éxito! Correcciones aplicadas.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
