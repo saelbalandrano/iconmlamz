@@ -49,6 +49,7 @@ if archivo_ml and archivo_amazon:
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
                 c_family = encontrar_columna_ml(['family id'])
+                c_stock = encontrar_columna_ml(['stock', 'cantidad'])
                 c_precio = encontrar_columna_ml(['precio'])
 
                 if c_precio:
@@ -101,8 +102,11 @@ if archivo_ml and archivo_amazon:
                     modelo_diseno = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
                     descripcion_ml = str(modelo_base[c_desc]).strip() if c_desc and pd.notna(modelo_base[c_desc]) else ''
-                    sku_padre_raw = str(modelo_base[c_sku]).strip() if c_sku and pd.notna(modelo_base[c_sku]) else ''
-                    sku_padre = sku_padre_raw.replace('MLM', '') if sku_padre_raw.startswith('MLM') else sku_padre_raw
+                    
+                    # Ajuste 1: SKU Padre toma el Family ID asegurando que no tenga ".0"
+                    sku_padre = str(family_id).strip()
+                    if sku_padre.endswith('.0'): 
+                        sku_padre = sku_padre[:-2]
 
                     titulo_lower = titulo.lower()
                     if '3 en 1' in titulo_lower or '360' in titulo_lower:
@@ -155,15 +159,20 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Estado del producto', 'Nuevo')
                     assign(parent, 'Moneda del precio de venta recomendado', 'MXN')
                     assign(parent, 'Cumplimiento de código de canal (MX)', 'Gestionado por el vendedor')
-                    assign(parent, 'Inventario siempre disponible (MX)', 'Deshabilitado')
                     assign(parent, 'Plantilla de envío (MX)', 'Plantilla de Amazon')
                     assign(parent, 'Garantía de Producto', 'Garantia de 30 dias ')
                     assign(parent, 'País de origen', 'China')
+                    
+                    # Ajuste 4: Baterías SOLO en el padre
+                    assign_any(parent, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], 'No')
                     
                     amazon_data.append(parent)
 
                     for _, row in group.iterrows():
                         child = parent.copy()
+                        
+                        # Limpiamos todo rastro de "baterías" para los hijos
+                        assign_any(child, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], '')
                         
                         sku_hijo_raw = str(row[c_sku]).strip() if c_sku and pd.notna(row[c_sku]) else ''
                         sku_hijo = sku_hijo_raw.replace('MLM', '') if sku_hijo_raw.startswith('MLM') else sku_hijo_raw
@@ -175,21 +184,34 @@ if archivo_ml and archivo_amazon:
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
                         assign(child, 'Color', color_val)
                         
-                        # --- EL AJUSTE FINAL: PRECIO Y CANTIDAD IGUALES ---
                         precio_val = row[c_precio] if c_precio and pd.notna(row[c_precio]) else ''
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
                         assign(child, 'Su precio MXN (Vender en Amazon, MX)', precio_val)
-                        assign(child, 'Cantidad (MX)', precio_val)  # << ¡Aquí está el vínculo directo!
                         
+                        # Ajuste 2: Cantidad e Inventario SOLO para los hijos, jalando del Stock
+                        stock_val = row[c_stock] if c_stock and pd.notna(row[c_stock]) else ''
+                        assign(child, 'Cantidad (MX)', stock_val)
+                        assign(child, 'Inventario siempre disponible (MX)', 'Deshabilitado')
+                        
+                        # Ajuste 3: Medidas SOLO para los hijos, con los nuevos datos de paquete
                         assign(child, 'Valor decimal del grosor del artículo', '1.0')
                         assign(child, 'Valor descriptivo del grosor del artículo', '1')
                         assign(child, 'Unidad del grosor del artículo', 'Centímetros')
-                        assign_any(child, ['Longitud del artículo.1', 'item_package_dimensions_length'], '18.0')
+                        
+                        assign_any(child, ['Longitud del artículo', 'Longitud del artículo.1', 'item_package_dimensions_length'], '18.0')
                         assign_any(child, ['longitud del artículo', 'item_package_dimensions_length_unit'], 'Centímetros')
-                        assign_any(child, ['ancho del articulo', 'Ancho Paquete'], '12.0')
-                        assign_any(child, ['Unidad de ancho de artículo', 'Unidad de anchura del paquete'], 'Centímetros')
-                        assign_any(child, ['Altura del artículo', 'Altura Paquete'], '1.0')
-                        assign_any(child, ['Unidad de altura del artículo', 'Unidad de altura del paquete'], 'Centímetros')
+                        assign_any(child, ['ancho del articulo'], '12.0')
+                        assign_any(child, ['Unidad de ancho de artículo'], 'Centímetros')
+                        assign_any(child, ['Altura del artículo'], '1.0')
+                        assign_any(child, ['Unidad de altura del artículo'], 'Centímetros')
+                        
+                        assign_any(child, ['Longitud Paquete'], '19.0')
+                        assign_any(child, ['Unidad de longitud del paquete'], 'Centímetros')
+                        assign_any(child, ['Ancho Paquete'], '15.0')
+                        assign_any(child, ['Unidad de anchura del paquete'], 'Centímetros')
+                        assign_any(child, ['Altura Paquete'], '1.0')
+                        assign_any(child, ['Unidad de altura del paquete'], 'Centímetros')
+                        
                         assign(child, 'Peso del paquete', '75.0')
                         assign(child, 'Unidad del peso del paquete', 'Gramos')
 
@@ -218,7 +240,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Archivo generado con éxito! Precio y Cantidad ahora son idénticos.")
+                st.success("¡Archivo generado con éxito! El Equipo de Trabajo ya lo puede subir directo.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
