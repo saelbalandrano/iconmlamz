@@ -49,7 +49,6 @@ if archivo_ml and archivo_amazon:
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
                 c_family = encontrar_columna_ml(['family id'])
-                c_stock = encontrar_columna_ml(['stock', 'cantidad'])
                 c_precio = encontrar_columna_ml(['precio'])
 
                 if c_precio:
@@ -176,10 +175,7 @@ if archivo_ml and archivo_amazon:
                     
                     assign(parent, 'SKU', sku_padre)
                     assign(parent, 'Tipo de producto', 'CELLULAR_PHONE_CASE')
-                    
-                    # AQUÍ ESTÁ EL AJUSTE PARA EL PADRE
                     assign(parent, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
-                    
                     assign(parent, 'Nivel de relación', 'Principal.')
                     assign(parent, 'Nombre del tema de variación', 'COLOR')
                     assign(parent, 'Nombre del producto', titulo)
@@ -222,7 +218,6 @@ if archivo_ml and archivo_amazon:
                     for _, row in group.iterrows():
                         child = parent.copy()
                         
-                        # AQUÍ ESTÁ EL AJUSTE PARA EL HIJO: Aseguramos que diga exactamente lo mismo
                         assign(child, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
                         assign_any(child, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], '')
                         
@@ -243,8 +238,7 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
                         assign(child, 'Su precio MXN (Vender en Amazon, MX)', precio_val)
                         
-                        stock_val = row[c_stock] if c_stock and pd.notna(row[c_stock]) else ''
-                        assign(child, 'Cantidad (MX)', stock_val)
+                        # --- ELIMINAMOS LA ASIGNACIÓN DE STOCK POR COMPLETO ---
                         assign(child, 'Inventario siempre disponible (MX)', 'Deshabilitado')
                         
                         assign(child, 'Valor decimal del grosor del artículo', '1.0')
@@ -278,7 +272,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Archivo generado con éxito! Acción de Listado sincronizada para ambos.")
+                st.success("¡Archivo generado con éxito! El inventario ya no se cargará.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
