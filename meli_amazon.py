@@ -76,6 +76,14 @@ if archivo_ml and archivo_amazon:
                 template_cols = [c for c in df_template.columns if not str(c).startswith('Unnamed')]
                 amazon_map = {clean_str(c): c for c in template_cols}
 
+                # --- EL CANDADO (Buscar índice de Plantilla de envío MX) ---
+                idx_candado = 0
+                for i, col in enumerate(template_cols):
+                    if clean_str(col) == clean_str('Plantilla de envío (MX)'):
+                        idx_candado = i
+                        break
+                post_cols = template_cols[idx_candado:] 
+
                 amazon_data = []
 
                 def assign(data_dict, col_name, val):
@@ -89,6 +97,42 @@ if archivo_ml and archivo_amazon:
                         if clean_name in amazon_map:
                             data_dict[amazon_map[clean_name]] = val
                             break
+                            
+                # Función blindada para medidas 
+                def assign_dimensions(data_row):
+                    l_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('longitud del artículo')]
+                    if len(l_cols) > 0: data_row[l_cols[0]] = '18.0'
+                    if len(l_cols) > 1: data_row[l_cols[1]] = 'Centímetros'
+                    
+                    w_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('ancho del artículo')]
+                    w_u_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad de ancho de artículo')]
+                    if w_cols: data_row[w_cols[0]] = '12.0'
+                    if w_u_cols: data_row[w_u_cols[0]] = 'Centímetros'
+                    
+                    h_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Altura del artículo')]
+                    h_u_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad de altura del artículo')]
+                    if h_cols: data_row[h_cols[0]] = '1.0'
+                    if h_u_cols: data_row[h_u_cols[0]] = 'Centímetros'
+                    
+                    pl_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Longitud Paquete')]
+                    pl_u_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad de longitud del paquete')]
+                    if pl_cols: data_row[pl_cols[0]] = '19.0'
+                    if pl_u_cols: data_row[pl_u_cols[0]] = 'Centímetros'
+                    
+                    pw_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Ancho Paquete')]
+                    pw_u_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad de anchura del paquete')]
+                    if pw_cols: data_row[pw_cols[0]] = '15.0'
+                    if pw_u_cols: data_row[pw_u_cols[0]] = 'Centímetros'
+                    
+                    ph_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Altura Paquete')]
+                    ph_u_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad de altura del paquete')]
+                    if ph_cols: data_row[ph_cols[0]] = '1.0'
+                    if ph_u_cols: data_row[ph_u_cols[0]] = 'Centímetros'
+                    
+                    pw_cols2 = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Peso del paquete')]
+                    pwu_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('Unidad del peso del paquete')]
+                    if pw_cols2: data_row[pw_cols2[0]] = '75.0'
+                    if pwu_cols: data_row[pwu_cols[0]] = 'Gramos'
 
                 familias = df_ml.groupby(c_family) if c_family else []
 
@@ -102,6 +146,7 @@ if archivo_ml and archivo_amazon:
                     modelo_diseno = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
                     descripcion_ml = str(modelo_base[c_desc]).strip() if c_desc and pd.notna(modelo_base[c_desc]) else ''
+                    precio_padre = modelo_base[c_precio] if c_precio and pd.notna(modelo_base[c_precio]) else ''
                     
                     sku_padre = str(family_id).strip()
                     if sku_padre.endswith('.0'): 
@@ -131,7 +176,10 @@ if archivo_ml and archivo_amazon:
                     
                     assign(parent, 'SKU', sku_padre)
                     assign(parent, 'Tipo de producto', 'CELLULAR_PHONE_CASE')
-                    assign(parent, 'Acción de listado', 'Crear o reemplazar')
+                    
+                    # AQUÍ ESTÁ EL AJUSTE PARA EL PADRE
+                    assign(parent, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
+                    
                     assign(parent, 'Nivel de relación', 'Principal.')
                     assign(parent, 'Nombre del tema de variación', 'COLOR')
                     assign(parent, 'Nombre del producto', titulo)
@@ -150,13 +198,19 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Material', material_ext)
                     assign(parent, 'Número de Artículos', '1')
                     assign(parent, 'Numero de pieza', modelo_diseno)
-                    # CORRECCIÓN 4: Eliminada la asignación de modelos compatibles para el Padre
                     assign(parent, 'Conteo de unidades', '1.0')
                     assign(parent, 'Tipo de conteo de unidades', 'unidad')
+                    
+                    assign(parent, 'Valor decimal del grosor del artículo', '1.0')
+                    assign(parent, 'Valor descriptivo del grosor del artículo', '1')
+
                     assign(parent, 'Saltar oferta', 'No')
                     assign(parent, 'Estado del producto', 'Nuevo')
                     assign(parent, 'Moneda del precio de venta recomendado', 'MXN')
-                    # CORRECCIÓN 2: Texto exacto
+                    
+                    assign(parent, 'Precio de venta recomendado (PVPR)', precio_padre)
+                    assign(parent, 'Su precio MXN (Vender en Amazon, MX)', precio_padre)
+                    
                     assign(parent, 'Cumplimiento de código de canal (MX)', 'Gestionado por el vendedor (predeterminado)')
                     assign(parent, 'Plantilla de envío (MX)', 'Plantilla de Amazon')
                     assign(parent, 'Garantía de Producto', 'Garantia de 30 dias ')
@@ -168,6 +222,8 @@ if archivo_ml and archivo_amazon:
                     for _, row in group.iterrows():
                         child = parent.copy()
                         
+                        # AQUÍ ESTÁ EL AJUSTE PARA EL HIJO: Aseguramos que diga exactamente lo mismo
+                        assign(child, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
                         assign_any(child, ['¿Se necesitan baterías?', 'se necesitan baterias', '¿se necesitan baterias?'], '')
                         
                         sku_hijo_raw = str(row[c_sku]).strip() if c_sku and pd.notna(row[c_sku]) else ''
@@ -177,7 +233,6 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nivel de relación', 'Niños')
                         assign(child, 'SKU principal', sku_padre)
                         
-                        # CORRECCIÓN 4: Se mantiene exclusivamente para los Hijos
                         assign(child, 'Modelos de teléfono móvil compatibles', modelo_diseno)
                         assign(child, 'Dispositivos Compatibles', modelo_diseno)
                         
@@ -196,29 +251,7 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Valor descriptivo del grosor del artículo', '1')
                         assign(child, 'Unidad del grosor del artículo', 'Centímetros')
                         
-                        # CORRECCIÓN 3: Solución al choque de nombres exactos para las medidas del artículo
-                        len_cols = [c for c in template_cols if clean_str(c) == 'longitud del articulo']
-                        if len(len_cols) >= 1: child[len_cols[0]] = '18.0'
-                        if len(len_cols) >= 2: child[len_cols[1]] = 'Centímetros'
-                        
-                        width_cols = [c for c in template_cols if clean_str(c) == 'ancho del articulo']
-                        if len(width_cols) >= 1: child[width_cols[0]] = '12.0'
-                        if len(width_cols) >= 2: child[width_cols[1]] = 'Centímetros'
-                        
-                        height_cols = [c for c in template_cols if clean_str(c) == 'altura del articulo']
-                        if len(height_cols) >= 1: child[height_cols[0]] = '1.0'
-                        if len(height_cols) >= 2: child[height_cols[1]] = 'Centímetros'
-                        
-                        # Medidas de paquete
-                        assign_any(child, ['Longitud Paquete'], '19.0')
-                        assign_any(child, ['Unidad de longitud del paquete'], 'Centímetros')
-                        assign_any(child, ['Ancho Paquete'], '15.0')
-                        assign_any(child, ['Unidad de anchura del paquete'], 'Centímetros')
-                        assign_any(child, ['Altura Paquete'], '1.0')
-                        assign_any(child, ['Unidad de altura del paquete'], 'Centímetros')
-                        
-                        assign(child, 'Peso del paquete', '75.0')
-                        assign(child, 'Unidad del peso del paquete', 'Gramos')
+                        assign_dimensions(child)
 
                         def get_img(num):
                             c_img = encontrar_columna_ml([f'imagen {num}', f'image {num}'])
@@ -245,7 +278,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Archivo generado con éxito! Correcciones aplicadas.")
+                st.success("¡Archivo generado con éxito! Acción de Listado sincronizada para ambos.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
