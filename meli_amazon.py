@@ -47,8 +47,17 @@ if archivo_ml and archivo_amazon:
                 c_cel_comp = encontrar_columna_ml(['celular compatible', 'dispositivo compatible'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
                 
-                # Búsqueda estricta para asegurar que atrapa la columna correcta de color
-                c_color = encontrar_columna_ml(['atributo color']) or encontrar_columna_ml(['color']) 
+                # --- CANDADO IRROMPIBLE PARA EL COLOR ---
+                c_color = None
+                for col in df_ml.columns:
+                    col_str = str(col).lower()
+                    # Si tiene "atributo" y "color" en la misma celda (ignorando saltos de línea), es la elegida
+                    if 'atributo' in col_str and 'color' in col_str:
+                        c_color = col
+                        break
+                # Respaldo por si un día cambian el formato a solo "Color"
+                if not c_color: 
+                    c_color = encontrar_columna_ml(['color'])
                 
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
@@ -79,7 +88,7 @@ if archivo_ml and archivo_amazon:
                 template_cols = [c for c in df_template.columns if not str(c).startswith('Unnamed')]
                 amazon_map = {clean_str(c): c for c in template_cols}
 
-                # --- EL CANDADO ---
+                # --- EL CANDADO (Buscar índice de Plantilla de envío MX) ---
                 idx_candado = 0
                 for i, col in enumerate(template_cols):
                     if clean_str(col) == clean_str('Plantilla de envío (MX)'):
@@ -148,7 +157,6 @@ if archivo_ml and archivo_amazon:
                     titulo = str(modelo_base[c_titulo]) if c_titulo and pd.notna(modelo_base[c_titulo]) else 'Funda'
                     modelo_completo = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
                     
-                    # Extraemos el valor del celular compatible para las iniciales
                     val_compatible_padre = str(modelo_base[c_cel_comp]).strip() if c_cel_comp and pd.notna(modelo_base[c_cel_comp]) else modelo_completo
                     
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
@@ -159,7 +167,7 @@ if archivo_ml and archivo_amazon:
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
 
-                    # --- ALGORITMO DE GENERACIÓN DE INICIALES (Ahora usa el celular compatible) ---
+                    # --- ALGORITMO DE GENERACIÓN DE INICIALES ---
                     palabras_modelo = val_compatible_padre.split()
                     iniciales_modelo = ""
                     for p in palabras_modelo:
@@ -192,7 +200,6 @@ if archivo_ml and archivo_amazon:
                         v4 = "ACCESO TOTAL: Recortes precisos que respetan al 100% las funciones, botones y cámara de tu dispositivo."
                         v5 = "PERSONALIZA TU EQUIPO: Variedad de colores y diseños para que se adapten a tu estilo a la perfección."
 
-                    # Código Base del Padre
                     codigo_maestro_padre = f"{iniciales_modelo}-{tipo_sufijo}"
 
                     parent = {c: '' for c in template_cols}
@@ -255,7 +262,6 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nivel de relación', 'Niños')
                         assign(child, 'SKU principal', sku_padre)
                         
-                        # --- EXTRACCIÓN Y ASIGNACIÓN DOBLE DEL CELULAR COMPATIBLE ---
                         val_compatible = str(row[c_cel_comp]).strip() if c_cel_comp and pd.notna(row[c_cel_comp]) else modelo_completo
                         assign(child, 'Modelos de teléfono móvil compatibles', val_compatible)
                         assign(child, 'Dispositivos Compatibles', val_compatible)
@@ -265,7 +271,7 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
                         assign(child, 'Numero de pieza', codigo_consecutivo_hijo)
                         
-                        # --- ASIGNACIÓN ESTRICTA DEL COLOR ---
+                        # --- ASIGNACIÓN EXACTA HACIA AMAZON ---
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
                         assign(child, 'Color', color_val)
                         
@@ -306,7 +312,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Corregido! Iniciales listas y la columna de Color ya está recibiendo los datos correctamente.")
+                st.success("¡Atrapamos el Color! El código está blindado contra los saltos de línea de Excel.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
