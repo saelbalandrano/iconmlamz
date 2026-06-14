@@ -45,7 +45,8 @@ if archivo_ml and archivo_amazon:
                 c_titulo = encontrar_columna_ml(['titulo', 'título'])
                 c_modelo = encontrar_columna_ml(['celular compatible', 'nombre del diseño', 'modelo'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
-                c_color = encontrar_columna_ml(['color'])
+                # Blindamos la búsqueda del color para que atrape "Atributo Color"
+                c_color = encontrar_columna_ml(['atributo color', 'color']) 
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
                 c_family = encontrar_columna_ml(['family id'])
@@ -201,7 +202,7 @@ if archivo_ml and archivo_amazon:
                     # El Padre lleva el código base sin número consecutivo
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
                     assign(parent, 'Nombre Modelo', codigo_maestro_padre)
-                    assign(parent, 'Numero de pieza', codigo_maestro_padre)
+                    assign_any(parent, ['Numero de pieza', 'Número de pieza'], codigo_maestro_padre)
                     
                     assign(parent, 'Fabricante', 'Icon Case')
                     assign(parent, 'Descripción Producto', descripcion_ml)
@@ -251,14 +252,15 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Modelos de teléfono móvil compatibles', modelo_completo)
                         assign(child, 'Dispositivos Compatibles', modelo_completo)
                         
-                        # Inyección del consecutivo inteligente (Ej: HM8L-360-1)
+                        # Inyección del consecutivo inteligente (Ej: HM8L-360-1) para Modelo y Pieza
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
-                        assign(child, 'Numero de pieza', codigo_consecutivo_hijo)
+                        assign_any(child, ['Numero de pieza', 'Número de pieza'], codigo_consecutivo_hijo)
                         
+                        # Inyección blindada del Color
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
-                        assign(child, 'Color', color_val)
+                        assign_any(child, ['Color', 'Nombre del color', 'color_name'], color_val)
                         
                         precio_val = row[c_precio] if c_precio and pd.notna(row[c_precio]) else ''
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
@@ -297,7 +299,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡App actualizada! Códigos seriales consecutivos auto-generados a la perfección.")
+                st.success("¡App actualizada! El Color y el Número de Pieza se han enlazado correctamente.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
