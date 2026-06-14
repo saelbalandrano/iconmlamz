@@ -1,10 +1,3 @@
-¡Buen ojo, Sael! Amazon tiene la costumbre de poner columnas casi idénticas ("Modelos de teléfono móvil compatibles" y "Dispositivos Compatibles") y, si no llenas ambas, a veces su sistema se confunde y rechaza las variaciones.
-
-Ya apliqué exactamente la misma regla de extracción para la columna de "Dispositivos Compatibles". Ahora, el motor va a tomar el valor de "Atributo Celular compatible" de Mercado Libre (por ejemplo, "Honor Magic 8 Lite") y lo va a clonar en ambas columnas de Amazon para todos los hijos, dejando al padre limpio para evitar problemas.
-
-Aquí tienes el código de la app actualizado. Solo reemplázalo en tu GitHub y el Equipo de Trabajo tendrá las dos columnas llenas a la perfección:
-
-Python
 import streamlit as st
 import pandas as pd
 import io
