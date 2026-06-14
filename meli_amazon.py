@@ -43,9 +43,10 @@ if archivo_ml and archivo_amazon:
                     return None
 
                 c_titulo = encontrar_columna_ml(['titulo', 'título'])
-                c_modelo = encontrar_columna_ml(['celular compatible', 'nombre del diseño', 'modelo'])
+                c_modelo = encontrar_columna_ml(['nombre del diseño', 'modelo'])
+                # Búsqueda exclusiva para la columna de compatibilidad
+                c_cel_comp = encontrar_columna_ml(['celular compatible', 'dispositivo compatible'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
-                # Blindamos la búsqueda del color para que atrape "Atributo Color"
                 c_color = encontrar_columna_ml(['atributo color', 'color']) 
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
@@ -185,7 +186,7 @@ if archivo_ml and archivo_amazon:
                         v4 = "ACCESO TOTAL: Recortes precisos que respetan al 100% las funciones, botones y cámara de tu dispositivo."
                         v5 = "PERSONALIZA TU EQUIPO: Variedad de colores y diseños para que se adapten a tu estilo a la perfección."
 
-                    # Código Base del Padre (Ej: HM8L-360)
+                    # Código Base del Padre
                     codigo_maestro_padre = f"{iniciales_modelo}-{tipo_sufijo}"
 
                     parent = {c: '' for c in template_cols}
@@ -199,7 +200,6 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Marca', 'Icon Case')
                     assign(parent, 'Tipo de ID del producto', 'Exento de GTIN')
                     
-                    # El Padre lleva el código base sin número consecutivo
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
                     assign(parent, 'Nombre Modelo', codigo_maestro_padre)
                     assign_any(parent, ['Numero de pieza', 'Número de pieza'], codigo_maestro_padre)
@@ -235,7 +235,7 @@ if archivo_ml and archivo_amazon:
                     
                     amazon_data.append(parent)
 
-                    # --- FILAS NIÑOS (CONSECUTIVOS AUTOMÁTICOS) ---
+                    # --- FILAS NIÑOS ---
                     for idx, (_, row) in enumerate(group.iterrows(), 1):
                         child = parent.copy()
                         
@@ -249,16 +249,16 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nivel de relación', 'Niños')
                         assign(child, 'SKU principal', sku_padre)
                         
-                        assign(child, 'Modelos de teléfono móvil compatibles', modelo_completo)
-                        assign(child, 'Dispositivos Compatibles', modelo_completo)
+                        # --- EXTRACCIÓN DIRECTA DEL CELULAR COMPATIBLE ---
+                        val_compatible = str(row[c_cel_comp]).strip() if c_cel_comp and pd.notna(row[c_cel_comp]) else modelo_completo
+                        assign(child, 'Modelos de teléfono móvil compatibles', val_compatible)
+                        assign_any(child, ['Dispositivos Compatibles', 'dispositivos compatibles'], val_compatible)
                         
-                        # Inyección del consecutivo inteligente (Ej: HM8L-360-1) para Modelo y Pieza
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
                         assign_any(child, ['Numero de pieza', 'Número de pieza'], codigo_consecutivo_hijo)
                         
-                        # Inyección blindada del Color
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
                         assign_any(child, ['Color', 'Nombre del color', 'color_name'], color_val)
                         
@@ -299,7 +299,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡App actualizada! El Color y el Número de Pieza se han enlazado correctamente.")
+                st.success("¡App actualizada! Los modelos compatibles están perfectamente mapeados.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
