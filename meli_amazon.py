@@ -46,7 +46,10 @@ if archivo_ml and archivo_amazon:
                 c_modelo = encontrar_columna_ml(['nombre del diseño', 'modelo'])
                 c_cel_comp = encontrar_columna_ml(['celular compatible', 'dispositivo compatible'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
-                c_color = encontrar_columna_ml(['atributo color', 'color']) 
+                
+                # Búsqueda estricta para asegurar que atrapa la columna correcta de color
+                c_color = encontrar_columna_ml(['atributo color']) or encontrar_columna_ml(['color']) 
+                
                 c_desc = encontrar_columna_ml(['descripci'])
                 c_sku = encontrar_columna_ml(['user product id'])
                 c_family = encontrar_columna_ml(['family id'])
@@ -76,7 +79,7 @@ if archivo_ml and archivo_amazon:
                 template_cols = [c for c in df_template.columns if not str(c).startswith('Unnamed')]
                 amazon_map = {clean_str(c): c for c in template_cols}
 
-                # --- EL CANDADO (Buscar índice de Plantilla de envío MX) ---
+                # --- EL CANDADO ---
                 idx_candado = 0
                 for i, col in enumerate(template_cols):
                     if clean_str(col) == clean_str('Plantilla de envío (MX)'):
@@ -144,6 +147,10 @@ if archivo_ml and archivo_amazon:
                     
                     titulo = str(modelo_base[c_titulo]) if c_titulo and pd.notna(modelo_base[c_titulo]) else 'Funda'
                     modelo_completo = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
+                    
+                    # Extraemos el valor del celular compatible para las iniciales
+                    val_compatible_padre = str(modelo_base[c_cel_comp]).strip() if c_cel_comp and pd.notna(modelo_base[c_cel_comp]) else modelo_completo
+                    
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
                     descripcion_ml = str(modelo_base[c_desc]).strip() if c_desc and pd.notna(modelo_base[c_desc]) else ''
                     precio_padre = modelo_base[c_precio] if c_precio and pd.notna(modelo_base[c_precio]) else ''
@@ -152,8 +159,8 @@ if archivo_ml and archivo_amazon:
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
 
-                    # --- ALGORITMO DE GENERACIÓN DE CÓDIGO SERIAL MAESTRO ---
-                    palabras_modelo = modelo_completo.split()
+                    # --- ALGORITMO DE GENERACIÓN DE INICIALES (Ahora usa el celular compatible) ---
+                    palabras_modelo = val_compatible_padre.split()
                     iniciales_modelo = ""
                     for p in palabras_modelo:
                         match = re.search(r'[a-zA-Z0-9]', p)
@@ -165,21 +172,21 @@ if archivo_ml and archivo_amazon:
                     titulo_lower = titulo.lower()
                     if '3 en 1' in titulo_lower or '360' in titulo_lower or 'marco + bumper' in titulo_lower or 'marco+bumper' in titulo_lower:
                         tipo_sufijo = "360"
-                        v1 = f"PROTECCIÓN 360° ULTRA REFORZADA: Diseño 3 en 1 que envuelve y protege tu {modelo_completo} por completo contra impactos extremos."
+                        v1 = f"PROTECCIÓN 360° ULTRA REFORZADA: Diseño 3 en 1 que envuelve y protege tu {val_compatible_padre} por completo contra impactos extremos."
                         v2 = "SISTEMA DE 3 PIEZAS: Compuesta por 2 marcos y una funda central. (Nota: Se envía preensamblada, desármala antes de instalar y vuelve a cerrarla para un ajuste perfecto)."
                         v3 = "USO RUDO Y ANTIGOLPES: Materiales de alta resistencia que blindan tu equipo ante caídas accidentales."
                         v4 = "AJUSTE PERFECTO: Diseñada milimétricamente para liberar todos los puertos y botones de tu celular."
                         v5 = "ESTILO Y SEGURIDAD: Gran variedad de colores para que personalices tu equipo sin sacrificar protección."
                     elif 'mica' in titulo_lower or 'hidrogel' in titulo_lower:
                         tipo_sufijo = "MIC"
-                        v1 = f"KIT DE PROTECCIÓN TOTAL: Incluye una Funda de Uso Rudo + 1 Mica de Hidrogel premium para tu {modelo_completo}."
+                        v1 = f"KIT DE PROTECCIÓN TOTAL: Incluye una Funda de Uso Rudo + 1 Mica de Hidrogel premium para tu {val_compatible_padre}."
                         v2 = "MICA DE 4 CAPAS: Tecnología avanzada. (Importante: La capa instalable es la central. Recomendamos instalación por un profesional para evitar burbujas)."
                         v3 = "CASE ANTIGOLPES: Estructura resistente y gruesa que disipa la fuerza de los impactos de forma eficiente."
                         v4 = "DISEÑO ÚNICO: Variedad de colores vibrantes y diseños para que tu celular refleje tu estilo personal."
                         v5 = "ORILLAS REFORZADAS: Biseles elevados que protegen la pantalla y la cámara al colocar el equipo en superficies planas."
                     else:
                         tipo_sufijo = "BAS"
-                        v1 = f"PROTECCIÓN DE USO RUDO: Funda antigolpes resistente y gruesa, ideal para proteger tu {modelo_completo} en el ajetreo diario."
+                        v1 = f"PROTECCIÓN DE USO RUDO: Funda antigolpes resistente y gruesa, ideal para proteger tu {val_compatible_padre} en el ajetreo diario."
                         v2 = "ORILLAS REFORZADAS: Esquinas con sistema de amortiguación que reducen el riesgo de daños por caídas laterales."
                         v3 = "AGARRE SEGURO: Materiales diseñados para evitar que el equipo se te resbale de las manos."
                         v4 = "ACCESO TOTAL: Recortes precisos que respetan al 100% las funciones, botones y cámara de tu dispositivo."
@@ -201,7 +208,7 @@ if archivo_ml and archivo_amazon:
                     
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
                     assign(parent, 'Nombre Modelo', codigo_maestro_padre)
-                    assign_any(parent, ['Numero de pieza', 'Número de pieza'], codigo_maestro_padre)
+                    assign(parent, 'Numero de pieza', codigo_maestro_padre)
                     
                     assign(parent, 'Fabricante', 'Icon Case')
                     assign(parent, 'Descripción Producto', descripcion_ml)
@@ -210,7 +217,7 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Viñeta.2', v3)
                     assign(parent, 'Viñeta.3', v4)
                     assign(parent, 'Viñeta.4', v5)
-                    assign(parent, 'Palabra clave genérica', f"Funda {modelo_completo}, Case {modelo_completo}, Protector {modelo_completo}")
+                    assign(parent, 'Palabra clave genérica', f"Funda {val_compatible_padre}, Case {val_compatible_padre}, Protector {val_compatible_padre}")
                     assign(parent, 'Material', material_ext)
                     assign(parent, 'Número de Artículos', '1')
                     assign(parent, 'Conteo de unidades', '1.0')
@@ -256,10 +263,11 @@ if archivo_ml and archivo_amazon:
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
-                        assign_any(child, ['Numero de pieza', 'Número de pieza'], codigo_consecutivo_hijo)
+                        assign(child, 'Numero de pieza', codigo_consecutivo_hijo)
                         
+                        # --- ASIGNACIÓN ESTRICTA DEL COLOR ---
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
-                        assign_any(child, ['Color', 'Nombre del color', 'color_name'], color_val)
+                        assign(child, 'Color', color_val)
                         
                         precio_val = row[c_precio] if c_precio and pd.notna(row[c_precio]) else ''
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
@@ -298,7 +306,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡App actualizada! 'Dispositivos Compatibles' ya está replicado y enlazado correctamente.")
+                st.success("¡Corregido! Iniciales listas y la columna de Color ya está recibiendo los datos correctamente.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
