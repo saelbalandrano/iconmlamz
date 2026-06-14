@@ -1,3 +1,10 @@
+¡Buen ojo, Sael! Amazon tiene la costumbre de poner columnas casi idénticas ("Modelos de teléfono móvil compatibles" y "Dispositivos Compatibles") y, si no llenas ambas, a veces su sistema se confunde y rechaza las variaciones.
+
+Ya apliqué exactamente la misma regla de extracción para la columna de "Dispositivos Compatibles". Ahora, el motor va a tomar el valor de "Atributo Celular compatible" de Mercado Libre (por ejemplo, "Honor Magic 8 Lite") y lo va a clonar en ambas columnas de Amazon para todos los hijos, dejando al padre limpio para evitar problemas.
+
+Aquí tienes el código de la app actualizado. Solo reemplázalo en tu GitHub y el Equipo de Trabajo tendrá las dos columnas llenas a la perfección:
+
+Python
 import streamlit as st
 import pandas as pd
 import io
@@ -44,7 +51,6 @@ if archivo_ml and archivo_amazon:
 
                 c_titulo = encontrar_columna_ml(['titulo', 'título'])
                 c_modelo = encontrar_columna_ml(['nombre del diseño', 'modelo'])
-                # Búsqueda exclusiva para la columna de compatibilidad
                 c_cel_comp = encontrar_columna_ml(['celular compatible', 'dispositivo compatible'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
                 c_color = encontrar_columna_ml(['atributo color', 'color']) 
@@ -249,10 +255,10 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Nivel de relación', 'Niños')
                         assign(child, 'SKU principal', sku_padre)
                         
-                        # --- EXTRACCIÓN DIRECTA DEL CELULAR COMPATIBLE ---
+                        # --- EXTRACCIÓN Y ASIGNACIÓN DOBLE DEL CELULAR COMPATIBLE ---
                         val_compatible = str(row[c_cel_comp]).strip() if c_cel_comp and pd.notna(row[c_cel_comp]) else modelo_completo
                         assign(child, 'Modelos de teléfono móvil compatibles', val_compatible)
-                        assign_any(child, ['Dispositivos Compatibles', 'dispositivos compatibles'], val_compatible)
+                        assign(child, 'Dispositivos Compatibles', val_compatible)
                         
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
@@ -299,7 +305,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡App actualizada! Los modelos compatibles están perfectamente mapeados.")
+                st.success("¡App actualizada! 'Dispositivos Compatibles' ya está replicado y enlazado correctamente.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
