@@ -27,6 +27,32 @@ def clean_str(s):
     s = re.sub(r'\s+', ' ', s)
     return s.strip()
 
+# --- ACORDEÓN DE PALABRAS CLAVE (SEO Optimizado < 75 Caracteres) ---
+def generar_titulo_amazon_estricto(tipo, modelo_tel):
+    base_inicio = "Icon Case"
+    base_fin = f" para {modelo_tel}"
+    
+    # Definimos la prioridad de las palabras más buscadas por categoría
+    if tipo == "360":
+        palabras_clave = ["Funda 3 en 1", "Case 360", "Uso Rudo", "Protector", "Carcasa"]
+    elif tipo == "MIC":
+        palabras_clave = ["Kit Funda y Mica", "Case Protector", "Uso Rudo", "Hidrogel", "Carcasa"]
+    else:
+        palabras_clave = ["Funda Case", "Protector Carcasa", "Uso Rudo"]
+        
+    # Construimos el título base indispensable (Ej: Icon Case Funda 3 en 1 para iPhone 11)
+    titulo_actual = f"{base_inicio} {palabras_clave[0]}{base_fin}"
+    
+    # Intentamos meter las siguientes palabras clave en orden de prioridad antes del conector "para"
+    for palabra in palabras_clave[1:]:
+        test_titulo = titulo_actual.replace(base_fin, f" {palabra}{base_fin}")
+        if len(test_titulo) <= 75:
+            titulo_actual = test_titulo
+        else:
+            break # Detiene el acordeón si la siguiente palabra rompe los 75 caracteres
+            
+    return titulo_actual[:75]
+
 # --- MOTOR PRINCIPAL ---
 if archivo_ml and archivo_amazon:
     if st.button("🚀 Generar Archivo Maestro", use_container_width=True):
@@ -103,7 +129,7 @@ if archivo_ml and archivo_amazon:
                     for c in col_names:
                         clean_name = clean_str(c)
                         if clean_name in amazon_map:
-                            data_dict[amazon_map[clean_name]] = val
+                            data_dict[clean_name] = val
                             break
                             
                 def assign_dimensions(data_row):
@@ -149,7 +175,7 @@ if archivo_ml and archivo_amazon:
 
                     modelo_base = group.iloc[0]
                     
-                    titulo = str(modelo_base[c_titulo]) if c_titulo and pd.notna(modelo_base[c_titulo]) else 'Funda'
+                    titulo_ml = str(modelo_base[c_titulo]) if c_titulo and pd.notna(modelo_base[c_titulo]) else 'Funda'
                     modelo_completo = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
                     val_compatible_padre = str(modelo_base[c_cel_comp]).strip() if c_cel_comp and pd.notna(modelo_base[c_cel_comp]) else modelo_completo
                     
@@ -161,44 +187,36 @@ if archivo_ml and archivo_amazon:
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
 
-                    # --- NUEVO ALGORITMO INTELIGENTE DE CÓDIGOS ---
+                    # --- ALGORITMO DE GENERACIÓN DE INICIALES ---
                     palabras_modelo = val_compatible_padre.split()
                     iniciales_modelo = ""
-                    
                     if palabras_modelo:
-                        # La marca (primera palabra) toma 3 letras
                         marca = re.sub(r'[^a-zA-Z0-9]', '', palabras_modelo[0]).upper()
                         iniciales_modelo += marca[:3]
-                        
-                        # Las siguientes palabras
                         for p in palabras_modelo[1:]:
                             p_clean = re.sub(r'[^a-zA-Z0-9]', '', p).upper()
-                            if not p_clean:
-                                continue
-                            # Si tiene números (ej. A6X, 17, 8), pasa completa
+                            if not p_clean: continue
                             if any(char.isdigit() for char in p_clean):
                                 iniciales_modelo += p_clean
                             else:
-                                # Si es pura letra (ej. Pro, Lite, Magic), solo la primera letra
                                 iniciales_modelo += p_clean[0]
-
                     if not iniciales_modelo:
                         iniciales_modelo = "CEL"
 
-                    titulo_lower = titulo.lower()
-                    if '3 en 1' in titulo_lower or '360' in titulo_lower or 'marco + bumper' in titulo_lower or 'marco+bumper' in titulo_lower:
+                    titulo_ml_lower = titulo_ml.lower()
+                    if '3 en 1' in titulo_ml_lower or '360' in titulo_ml_lower or 'marco + bumper' in titulo_ml_lower or 'marco+bumper' in titulo_ml_lower:
                         tipo_sufijo = "360"
                         v1 = f"PROTECCIÓN 360° ULTRA REFORZADA: Diseño 3 en 1 que envuelve y protege tu {val_compatible_padre} por completo contra impactos extremos."
                         v2 = "SISTEMA DE 3 PIEZAS: Compuesta por 2 marcos y una funda central. (Nota: Se envía preensamblada, desármala antes de instalar y vuelve a cerrarla para un ajuste perfecto)."
                         v3 = "USO RUDO Y ANTIGOLPES: Materiales de alta resistencia que blindan tu equipo ante caídas accidentales."
                         v4 = "AJUSTE PERFECTO: Diseñada milimétricamente para liberar todos los puertos y botones de tu celular."
                         v5 = "ESTILO Y SEGURIDAD: Gran variedad de colores para que personalices tu equipo sin sacrificar protección."
-                    elif 'mica' in titulo_lower or 'hidrogel' in titulo_lower:
+                    elif 'mica' in titulo_ml_lower or 'hidrogel' in titulo_ml_lower:
                         tipo_sufijo = "MIC"
                         v1 = f"KIT DE PROTECCIÓN TOTAL: Incluye una Funda de Uso Rudo + 1 Mica de Hidrogel premium para tu {val_compatible_padre}."
                         v2 = "MICA DE 4 CAPAS: Tecnología avanzada. (Importante: La capa instalable es la central. Recomendamos instalación por un profesional para evitar burbujas)."
                         v3 = "CASE ANTIGOLPES: Estructura resistente y gruesa que disipa la fuerza de los impactos de forma eficiente."
-                        v4 = "DISEÑO ÚNICO: Variedad de colores vibrantes y diseños para que tu celular refleje tu estilo personal."
+                        v4 = "DISEÑO ÚNICO: Variedad de colores vibrantes y designs para que tu celular refleje tu estilo personal."
                         v5 = "ORILLAS REFORZADAS: Biseles elevados que protegen la pantalla y la cámara al colocar el equipo en superficies planas."
                     else:
                         tipo_sufijo = "BAS"
@@ -210,6 +228,9 @@ if archivo_ml and archivo_amazon:
 
                     codigo_maestro_padre = f"{iniciales_modelo}-{tipo_sufijo}"
 
+                    # --- CONSTRUCCIÓN ACORDEÓN DEL TÍTULO DEL PADRE ---
+                    titulo_amazon_padre = generar_titulo_amazon_estricto(tipo_sufijo, val_compatible_padre)
+
                     parent = {c: '' for c in template_cols}
                     
                     assign(parent, 'SKU', sku_padre)
@@ -217,14 +238,14 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
                     assign(parent, 'Nivel de relación', 'Principal.')
                     assign(parent, 'Nombre del tema de variación', 'COLOR')
-                    assign(parent, 'Nombre del producto', titulo)
+                    
+                    assign(parent, 'Nombre del producto', titulo_amazon_padre)
+                    
                     assign(parent, 'Marca', 'Icon Case')
                     assign(parent, 'Tipo de ID del producto', 'Exento de GTIN')
-                    
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
                     assign(parent, 'Nombre Modelo', codigo_maestro_padre)
-                    assign_any(parent, ['Numero de pieza', 'Número de pieza'], codigo_maestro_padre)
-                    
+                    assign(parent, 'Numero de pieza', codigo_maestro_padre)
                     assign(parent, 'Fabricante', 'Icon Case')
                     assign(parent, 'Descripción Producto', descripcion_ml)
                     assign(parent, 'Viñeta', v1)
@@ -237,17 +258,13 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Número de Artículos', '1')
                     assign(parent, 'Conteo de unidades', '1.0')
                     assign(parent, 'Tipo de conteo de unidades', 'unidad')
-                    
                     assign(parent, 'Valor decimal del grosor del artículo', '1.0')
                     assign(parent, 'Valor descriptivo del grosor del artículo', '1')
-
                     assign(parent, 'Saltar oferta', 'No')
                     assign(parent, 'Estado del producto', 'Nuevo')
                     assign(parent, 'Moneda del precio de venta recomendado', 'MXN')
-                    
                     assign(parent, 'Precio de venta recomendado (PVPR)', precio_padre)
                     assign(parent, 'Su precio MXN (Vender en Amazon, MX)', precio_padre)
-                    
                     assign(parent, 'Cumplimiento de código de canal (MX)', 'Gestionado por el vendedor (predeterminado)')
                     assign(parent, 'Plantilla de envío (MX)', 'Plantilla de Amazon')
                     assign(parent, 'Garantía de Producto', 'Garantia de 30 dias ')
@@ -256,6 +273,7 @@ if archivo_ml and archivo_amazon:
                     
                     amazon_data.append(parent)
 
+                    # --- FILAS NIÑOS ---
                     for idx, (_, row) in enumerate(group.iterrows(), 1):
                         child = parent.copy()
                         
@@ -273,20 +291,22 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Modelos de teléfono móvil compatibles', val_compatible)
                         assign(child, 'Dispositivos Compatibles', val_compatible)
                         
+                        # --- CONSTRUCCIÓN ACORDEÓN DEL TÍTULO DEL HIJO ---
+                        titulo_amazon_hijo = generar_titulo_amazon_estricto(tipo_sufijo, val_compatible)
+                        assign(child, 'Nombre del producto', titulo_amazon_hijo)
+                        
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
-                        assign_any(child, ['Numero de pieza', 'Número de pieza'], codigo_consecutivo_hijo)
+                        assign(child, 'Numero de pieza', codigo_consecutivo_hijo)
                         
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
-                        assign_any(child, ['Color', 'Nombre del color', 'color_name'], color_val)
+                        assign(child, 'Color', color_val)
                         
                         precio_val = row[c_precio] if c_precio and pd.notna(row[c_precio]) else ''
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
                         assign(child, 'Su precio MXN (Vender en Amazon, MX)', precio_val)
-                        
                         assign(child, 'Inventario siempre disponible (MX)', 'Deshabilitado')
-                        
                         assign(child, 'Valor decimal del grosor del artículo', '1.0')
                         assign(child, 'Valor descriptivo del grosor del artículo', '1')
                         assign(child, 'Unidad del grosor del artículo', 'Centímetros')
@@ -318,7 +338,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Motor inteligente actualizado! Descarga el archivo para ver los nuevos códigos.")
+                st.success("¡Motor de Títulos de Acordeón SEO activado con éxito!")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
