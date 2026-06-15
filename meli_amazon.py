@@ -32,7 +32,6 @@ def generar_titulo_amazon_estricto(tipo, modelo_tel):
     base_inicio = "Icon Case"
     base_fin = f" para {modelo_tel}"
     
-    # Definimos la prioridad de las palabras más buscadas por categoría
     if tipo == "360":
         palabras_clave = ["Funda 3 en 1", "Case 360", "Uso Rudo", "Protector", "Carcasa"]
     elif tipo == "MIC":
@@ -40,16 +39,14 @@ def generar_titulo_amazon_estricto(tipo, modelo_tel):
     else:
         palabras_clave = ["Funda Case", "Protector Carcasa", "Uso Rudo"]
         
-    # Construimos el título base indispensable (Ej: Icon Case Funda 3 en 1 para iPhone 11)
     titulo_actual = f"{base_inicio} {palabras_clave[0]}{base_fin}"
     
-    # Intentamos meter las siguientes palabras clave en orden de prioridad antes del conector "para"
     for palabra in palabras_clave[1:]:
         test_titulo = titulo_actual.replace(base_fin, f" {palabra}{base_fin}")
         if len(test_titulo) <= 75:
             titulo_actual = test_titulo
         else:
-            break # Detiene el acordeón si la siguiente palabra rompe los 75 caracteres
+            break 
             
     return titulo_actual[:75]
 
@@ -187,7 +184,6 @@ if archivo_ml and archivo_amazon:
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
 
-                    # --- ALGORITMO DE GENERACIÓN DE INICIALES ---
                     palabras_modelo = val_compatible_padre.split()
                     iniciales_modelo = ""
                     if palabras_modelo:
@@ -216,7 +212,7 @@ if archivo_ml and archivo_amazon:
                         v1 = f"KIT DE PROTECCIÓN TOTAL: Incluye una Funda de Uso Rudo + 1 Mica de Hidrogel premium para tu {val_compatible_padre}."
                         v2 = "MICA DE 4 CAPAS: Tecnología avanzada. (Importante: La capa instalable es la central. Recomendamos instalación por un profesional para evitar burbujas)."
                         v3 = "CASE ANTIGOLPES: Estructura resistente y gruesa que disipa la fuerza de los impactos de forma eficiente."
-                        v4 = "DISEÑO ÚNICO: Variedad de colores vibrantes y designs para que tu celular refleje tu estilo personal."
+                        v4 = "DISEÑO ÚNICO: Variedad de colores vibrantes y diseños para que tu celular refleje tu estilo personal."
                         v5 = "ORILLAS REFORZADAS: Biseles elevados que protegen la pantalla y la cámara al colocar el equipo en superficies planas."
                     else:
                         tipo_sufijo = "BAS"
@@ -227,8 +223,6 @@ if archivo_ml and archivo_amazon:
                         v5 = "PERSONALIZA TU EQUIPO: Variedad de colores y diseños para que se adapten a tu estilo a la perfección."
 
                     codigo_maestro_padre = f"{iniciales_modelo}-{tipo_sufijo}"
-
-                    # --- CONSTRUCCIÓN ACORDEÓN DEL TÍTULO DEL PADRE ---
                     titulo_amazon_padre = generar_titulo_amazon_estricto(tipo_sufijo, val_compatible_padre)
 
                     parent = {c: '' for c in template_cols}
@@ -238,9 +232,7 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Acción de listado', 'Crear o reemplazar (actualización completa)')
                     assign(parent, 'Nivel de relación', 'Principal.')
                     assign(parent, 'Nombre del tema de variación', 'COLOR')
-                    
                     assign(parent, 'Nombre del producto', titulo_amazon_padre)
-                    
                     assign(parent, 'Marca', 'Icon Case')
                     assign(parent, 'Tipo de ID del producto', 'Exento de GTIN')
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
@@ -258,8 +250,12 @@ if archivo_ml and archivo_amazon:
                     assign(parent, 'Número de Artículos', '1')
                     assign(parent, 'Conteo de unidades', '1.0')
                     assign(parent, 'Tipo de conteo de unidades', 'unidad')
+                    
+                    # --- CORRECCIÓN: Unidad del grosor para el Padre ---
                     assign(parent, 'Valor decimal del grosor del artículo', '1.0')
                     assign(parent, 'Valor descriptivo del grosor del artículo', '1')
+                    assign(parent, 'Unidad del grosor del artículo', 'Centímetros') 
+
                     assign(parent, 'Saltar oferta', 'No')
                     assign(parent, 'Estado del producto', 'Nuevo')
                     assign(parent, 'Moneda del precio de venta recomendado', 'MXN')
@@ -291,7 +287,6 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Modelos de teléfono móvil compatibles', val_compatible)
                         assign(child, 'Dispositivos Compatibles', val_compatible)
                         
-                        # --- CONSTRUCCIÓN ACORDEÓN DEL TÍTULO DEL HIJO ---
                         titulo_amazon_hijo = generar_titulo_amazon_estricto(tipo_sufijo, val_compatible)
                         assign(child, 'Nombre del producto', titulo_amazon_hijo)
                         
@@ -307,6 +302,7 @@ if archivo_ml and archivo_amazon:
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
                         assign(child, 'Su precio MXN (Vender en Amazon, MX)', precio_val)
                         assign(child, 'Inventario siempre disponible (MX)', 'Deshabilitado')
+                        
                         assign(child, 'Valor decimal del grosor del artículo', '1.0')
                         assign(child, 'Valor descriptivo del grosor del artículo', '1')
                         assign(child, 'Unidad del grosor del artículo', 'Centímetros')
@@ -338,7 +334,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Motor de Títulos de Acordeón SEO activado con éxito!")
+                st.success("¡Detalle corregido! 'Centímetros' se ha asignado al grosor del Padre correctamente.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
