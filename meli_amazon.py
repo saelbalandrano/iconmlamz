@@ -47,15 +47,12 @@ if archivo_ml and archivo_amazon:
                 c_cel_comp = encontrar_columna_ml(['celular compatible', 'dispositivo compatible'])
                 c_material = encontrar_columna_ml(['materiales del exterior'])
                 
-                # --- CANDADO IRROMPIBLE PARA EL COLOR ---
                 c_color = None
                 for col in df_ml.columns:
                     col_str = str(col).lower()
-                    # Si tiene "atributo" y "color" en la misma celda (ignorando saltos de línea), es la elegida
                     if 'atributo' in col_str and 'color' in col_str:
                         c_color = col
                         break
-                # Respaldo por si un día cambian el formato a solo "Color"
                 if not c_color: 
                     c_color = encontrar_columna_ml(['color'])
                 
@@ -88,7 +85,6 @@ if archivo_ml and archivo_amazon:
                 template_cols = [c for c in df_template.columns if not str(c).startswith('Unnamed')]
                 amazon_map = {clean_str(c): c for c in template_cols}
 
-                # --- EL CANDADO (Buscar índice de Plantilla de envío MX) ---
                 idx_candado = 0
                 for i, col in enumerate(template_cols):
                     if clean_str(col) == clean_str('Plantilla de envío (MX)'):
@@ -110,7 +106,6 @@ if archivo_ml and archivo_amazon:
                             data_dict[amazon_map[clean_name]] = val
                             break
                             
-                # Función blindada para medidas 
                 def assign_dimensions(data_row):
                     l_cols = [c for c in post_cols if re.sub(r'\.\d+$', '', clean_str(c)) == clean_str('longitud del artículo')]
                     if len(l_cols) > 0: data_row[l_cols[0]] = '18.0'
@@ -156,7 +151,6 @@ if archivo_ml and archivo_amazon:
                     
                     titulo = str(modelo_base[c_titulo]) if c_titulo and pd.notna(modelo_base[c_titulo]) else 'Funda'
                     modelo_completo = str(modelo_base[c_modelo]).strip() if c_modelo and pd.notna(modelo_base[c_modelo]) else 'Celular'
-                    
                     val_compatible_padre = str(modelo_base[c_cel_comp]).strip() if c_cel_comp and pd.notna(modelo_base[c_cel_comp]) else modelo_completo
                     
                     material_ext = str(modelo_base[c_material]).strip() if c_material and pd.notna(modelo_base[c_material]) else ''
@@ -167,13 +161,27 @@ if archivo_ml and archivo_amazon:
                     if sku_padre.endswith('.0'): 
                         sku_padre = sku_padre[:-2]
 
-                    # --- ALGORITMO DE GENERACIÓN DE INICIALES ---
+                    # --- NUEVO ALGORITMO INTELIGENTE DE CÓDIGOS ---
                     palabras_modelo = val_compatible_padre.split()
                     iniciales_modelo = ""
-                    for p in palabras_modelo:
-                        match = re.search(r'[a-zA-Z0-9]', p)
-                        if match:
-                            iniciales_modelo += match.group(0).upper()
+                    
+                    if palabras_modelo:
+                        # La marca (primera palabra) toma 3 letras
+                        marca = re.sub(r'[^a-zA-Z0-9]', '', palabras_modelo[0]).upper()
+                        iniciales_modelo += marca[:3]
+                        
+                        # Las siguientes palabras
+                        for p in palabras_modelo[1:]:
+                            p_clean = re.sub(r'[^a-zA-Z0-9]', '', p).upper()
+                            if not p_clean:
+                                continue
+                            # Si tiene números (ej. A6X, 17, 8), pasa completa
+                            if any(char.isdigit() for char in p_clean):
+                                iniciales_modelo += p_clean
+                            else:
+                                # Si es pura letra (ej. Pro, Lite, Magic), solo la primera letra
+                                iniciales_modelo += p_clean[0]
+
                     if not iniciales_modelo:
                         iniciales_modelo = "CEL"
 
@@ -215,7 +223,7 @@ if archivo_ml and archivo_amazon:
                     
                     assign(parent, 'Numero de modelo', codigo_maestro_padre)
                     assign(parent, 'Nombre Modelo', codigo_maestro_padre)
-                    assign(parent, 'Numero de pieza', codigo_maestro_padre)
+                    assign_any(parent, ['Numero de pieza', 'Número de pieza'], codigo_maestro_padre)
                     
                     assign(parent, 'Fabricante', 'Icon Case')
                     assign(parent, 'Descripción Producto', descripcion_ml)
@@ -248,7 +256,6 @@ if archivo_ml and archivo_amazon:
                     
                     amazon_data.append(parent)
 
-                    # --- FILAS NIÑOS ---
                     for idx, (_, row) in enumerate(group.iterrows(), 1):
                         child = parent.copy()
                         
@@ -269,11 +276,10 @@ if archivo_ml and archivo_amazon:
                         codigo_consecutivo_hijo = f"{codigo_maestro_padre}-{idx}"
                         assign(child, 'Numero de modelo', codigo_consecutivo_hijo)
                         assign(child, 'Nombre Modelo', codigo_consecutivo_hijo)
-                        assign(child, 'Numero de pieza', codigo_consecutivo_hijo)
+                        assign_any(child, ['Numero de pieza', 'Número de pieza'], codigo_consecutivo_hijo)
                         
-                        # --- ASIGNACIÓN EXACTA HACIA AMAZON ---
                         color_val = str(row[c_color]).strip() if c_color and pd.notna(row[c_color]) else ''
-                        assign(child, 'Color', color_val)
+                        assign_any(child, ['Color', 'Nombre del color', 'color_name'], color_val)
                         
                         precio_val = row[c_precio] if c_precio and pd.notna(row[c_precio]) else ''
                         assign(child, 'Precio de venta recomendado (PVPR)', precio_val)
@@ -312,7 +318,7 @@ if archivo_ml and archivo_amazon:
                     df_final.to_excel(writer, index=False)
                 processed_data = output.getvalue()
                 
-                st.success("¡Atrapamos el Color! El código está blindado contra los saltos de línea de Excel.")
+                st.success("¡Motor inteligente actualizado! Descarga el archivo para ver los nuevos códigos.")
                 st.download_button(
                     label="📥 Descargar Archivo para Amazon",
                     data=processed_data,
